@@ -1,71 +1,40 @@
-use chrono::prelude::*;
-use clap::{Parser, Subcommand};
 use requestty::{Question};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::process::Command;
 use std::path::PathBuf;
-use std::{thread, time};
-extern crate dirs;
+use std::{thread, time}; 
+use chrono::prelude::*;
 
-#[derive(Parser)]
-#[clap(version, about, arg_required_else_help(true))]
-pub struct SshCommand {
-    #[clap(short, long)]
-    debug: bool,
+pub fn command() -> Result<(), &'static str> {
+    println!("Generating new SSH Key");
+    let encryption_type = ask_encryption_type().unwrap();
+    let comment = ask_comment().unwrap();
+    let path = ask_path(&encryption_type).unwrap();
+    let password = ask_password().unwrap();
 
-    #[clap(subcommand)]
-    command: Option<SshCommands>,
-}
+    println!("Running SSH Keygen: ssh-keygen -t {} -C \"{}\" -f {}", encryption_type, comment.text, path.value);
 
-#[derive(Subcommand)]
-pub enum SshCommands {
-    /// Generate a new SSH Key
-    Generate {},
-}
+    let mut ssh_keygen_command = Command::new("ssh-keygen");
 
-pub fn command(ssh: &SshCommand) {
-    println!("SSH Command!");
-    super::utils::print_is_debug(&ssh.debug);
-
-    match ssh.command {
-        Some(SshCommands::Generate {}) => {
-
-            println!("Generating new SSH Key");
-            super::utils::print_separator();
-            let encryption_type = ask_encryption_type().unwrap();
-            super::utils::print_separator();
-            let comment = ask_comment().unwrap();
-            super::utils::print_separator();
-            let path = ask_path(&encryption_type).unwrap();
-            super::utils::print_separator();
-            let password = ask_password().unwrap();
-            super::utils::print_separator();
-
-            println!("Running SSH Keygen: ssh-keygen -t {} -C \"{}\" -f {}", encryption_type, comment.text, path.value);
-
-            let mut ssh_keygen_command = Command::new("ssh-keygen");
-
-            ssh_keygen_command
-                .arg("-t")
-                .arg(format!("{}", encryption_type))
-                .arg("-C")
-                .arg(comment.text)
-                .arg("-f")
-                .arg(path.path_value.to_str().unwrap())
-                .arg("-N")
-                .arg(password.value);
-            
-            if encryption_type == EncryptionType::Rsa {
-                ssh_keygen_command.arg("-b").arg("4096");
-            }
-
-            ssh_keygen_command.spawn().expect("ssh-keygen failed to runr");
-
-            thread::sleep(time::Duration::from_millis(1000));
-        }
-        None => {}
+    ssh_keygen_command
+        .arg("-t")
+        .arg(format!("{}", encryption_type))
+        .arg("-C")
+        .arg(comment.text)
+        .arg("-f")
+        .arg(path.path_value.to_str().unwrap())
+        .arg("-N")
+        .arg(password.value);
+    
+    if encryption_type == EncryptionType::Rsa {
+        ssh_keygen_command.arg("-b").arg("4096");
     }
+
+    ssh_keygen_command.spawn().expect("ssh-keygen failed to runr");
+
+    thread::sleep(time::Duration::from_millis(1000));
+    Ok(())
 }
 
 fn ask_password() -> Result<Password, PasswordParsingError> {
