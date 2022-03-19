@@ -1,22 +1,20 @@
+use super::utils::{list_private_keys, SshKey};
 use log::debug;
 use requestty::Question;
-use std::fs;
-use std::io;
-use std::path::PathBuf;
 use std::process::Command;
 use std::vec::Vec;
 extern crate dirs;
 
 pub fn command() -> Result<(), ()> {
-    let key = ask_key().unwrap();
-    debug!("Deleting {:?}", key);
-    match delete_key(key) {
+    let ssh_key = ask_key().unwrap();
+    debug!("Deleting {:?}", ssh_key);
+    match delete_key(ssh_key) {
         Ok(_) => Ok(()),
         Err(_) => Ok(()),
     }
 }
 
-fn delete_key(key: Key) -> Result<(), KeyAddingError> {
+fn delete_key(key: SshKey) -> Result<(), KeyAddingError> {
     debug!("Deleting private key");
     Command::new("rm")
         .arg(String::from(&key.value))
@@ -39,8 +37,8 @@ fn delete_key(key: Key) -> Result<(), KeyAddingError> {
 #[derive(Debug)]
 struct KeyAddingError {}
 
-fn ask_key() -> Result<Key, KeyParsingError> {
-    let ssh_keys = list_ssh_keys().unwrap();
+fn ask_key() -> Result<SshKey, KeyParsingError> {
+    let ssh_keys = list_private_keys().unwrap();
     let ssh_choices: Vec<String> = ssh_keys.into_iter().map(|x| x.value).collect();
 
     let question = Question::select("ssh_key")
@@ -54,7 +52,7 @@ fn ask_key() -> Result<Key, KeyParsingError> {
         Ok(result) => {
             let selected_key = &result.as_list_item().unwrap().text;
 
-            let mut key: Vec<Key> = list_ssh_keys()
+            let mut key: Vec<SshKey> = list_private_keys()
                 .unwrap()
                 .into_iter()
                 .filter(|x| x.value.eq(selected_key))
@@ -72,27 +70,4 @@ fn ask_key() -> Result<Key, KeyParsingError> {
 }
 
 #[derive(Debug)]
-struct Key {
-    value: String,
-}
-
-#[derive(Debug)]
 struct KeyParsingError {}
-
-fn list_ssh_keys() -> Result<Vec<Key>, io::Error> {
-    let mut ssh_path = PathBuf::new();
-    ssh_path.push(dirs::home_dir().unwrap());
-    ssh_path.push(".ssh");
-
-    Ok(fs::read_dir(ssh_path)
-        .unwrap()
-        .into_iter()
-        .filter(|r| r.is_ok()) // Get rid of Err variants for Result<DirEntry>
-        .map(|r| {
-            let path = r.unwrap().path();
-            let path_string = String::from(path.to_str().unwrap());
-            Key { value: path_string }
-        })
-        .filter(|r| r.value.contains("id_") && r.value.contains(".pub") == false)
-        .collect())
-}

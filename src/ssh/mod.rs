@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand};
 mod key_adder;
 mod key_deleter;
 mod key_generator;
+mod utils;
 
 #[derive(Parser)]
 #[clap(version, about, arg_required_else_help(true))]
