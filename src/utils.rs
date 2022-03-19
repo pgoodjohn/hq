@@ -4,3 +4,7 @@ pub fn print_is_debug(cli_debug: &bool) {
         false => println!("Debug mode is off")
     }
 }
+
+pub fn print_separator() {
+    println!("========================================");
+}
