@@ -17,20 +17,12 @@ pub enum SshCommands {
 
 pub fn command(ssh: &SshCommand) {
     println!("SSH Command!");
-    print_is_debug(&ssh.debug);
+    super::utils::print_is_debug(&ssh.debug);
 
     match ssh.command {
         Some(SshCommands::Generate {}) => {
             println!("Generating new SSH Key");
         }
         None => {}
-    }
-
-}
-
-fn print_is_debug(cli_debug: &bool) {
-    match cli_debug {
-        true => println!("Debug mode is on"),
-        false => println!("Debug mode is off")
     }
 }

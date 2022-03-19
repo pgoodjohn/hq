@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 mod ssh;
+mod utils;
 
 #[derive(Parser)]
 #[clap(version, about)]
@@ -42,12 +43,5 @@ fn main() {
 }
 
 fn test_cli_command(cli: &Cli) {
-    print_is_debug(&cli.debug)
-}
-
-fn print_is_debug(cli_debug: &bool) {
-    match cli_debug {
-        true => println!("Debug mode is on"),
-        false => println!("Debug mode is off")
-    }
+    utils::print_is_debug(&cli.debug)
 }
