@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+mod ssh;
 
 #[derive(Parser)]
 #[clap(version, about)]
@@ -15,23 +16,9 @@ enum Commands {
     /// Check that everything is working
     Test {},
     /// Manage SSH keys and such
-    Ssh(SshCommand)
+    Ssh(ssh::SshCommand)
 }
 
-#[derive(Parser)]
-#[clap(version, about)]
-struct SshCommand {
-    #[clap(short, long)]
-    debug: bool,
-
-    #[clap(subcommand)]
-    command: Option<SshCommands>,
-}
-
-#[derive(Subcommand)]
-enum SshCommands {
-    Generate {},
-}
 
 fn main() {
     let cli = Cli::parse();
@@ -48,23 +35,10 @@ fn main() {
             test_cli_command(&cli);
         }
         Some(Commands::Ssh(command) )=> {
-            ssh_command(&command);
+            ssh::command(&command);
         }
         None => {}
     }
-}
-
-fn ssh_command(ssh: &SshCommand) {
-    println!("SSH Command!");
-    print_is_debug(&ssh.debug);
-
-    match ssh.command {
-        Some(SshCommands::Generate {}) => {
-            println!("Generating new SSH Key");
-        }
-        None => {}
-    }
-
 }
 
 fn test_cli_command(cli: &Cli) {
