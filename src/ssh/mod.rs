@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand};
 
-mod key_generator;
 mod key_adder;
 mod key_deleter;
+mod key_generator;
 
 #[derive(Parser)]
 #[clap(version, about, arg_required_else_help(true))]
@@ -27,7 +27,7 @@ pub enum SshCommands {
 pub fn command(ssh: &SshCommand) {
     match ssh.command {
         Some(SshCommands::Generate {}) => {
-            key_generator::command().unwrap(); 
+            key_generator::command().unwrap();
         }
         Some(SshCommands::Add {}) => {
             key_adder::command().unwrap();

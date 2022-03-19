@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
-use log::{debug};
-mod ssh;
+use log::debug;
 mod logger;
+mod ssh;
 
 #[derive(Parser)]
 #[clap(version, about, arg_required_else_help(true))]
@@ -16,9 +16,8 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Manage SSH keys and such
-    Ssh(ssh::SshCommand)
+    Ssh(ssh::SshCommand),
 }
-
 
 fn main() {
     let cli = Cli::parse();
@@ -30,7 +29,7 @@ fn main() {
     }
 
     match cli.command {
-        Some(Commands::Ssh(command) )=> {
+        Some(Commands::Ssh(command)) => {
             ssh::command(&command);
         }
         None => {}

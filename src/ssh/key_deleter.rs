@@ -1,10 +1,10 @@
-use requestty::{Question};
+use log::debug;
+use requestty::Question;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
-use std::vec::Vec;
 use std::process::Command;
-use log::{debug};
+use std::vec::Vec;
 extern crate dirs;
 
 pub fn command() -> Result<(), ()> {
@@ -17,7 +17,6 @@ pub fn command() -> Result<(), ()> {
 }
 
 fn delete_key(key: Key) -> Result<(), KeyAddingError> {
-
     debug!("Deleting private key");
     Command::new("rm")
         .arg(String::from(&key.value))
@@ -33,22 +32,16 @@ fn delete_key(key: Key) -> Result<(), KeyAddingError> {
         .arg(public_key_path)
         .spawn()
         .expect("ssh-add failed to run");
-    
+
     Ok(())
 }
 
 #[derive(Debug)]
-struct KeyAddingError {
-
-}
+struct KeyAddingError {}
 
 fn ask_key() -> Result<Key, KeyParsingError> {
-
     let ssh_keys = list_ssh_keys().unwrap();
-    let ssh_choices: Vec<String> = ssh_keys
-        .into_iter()
-        .map(|x| x.value)
-        .collect();
+    let ssh_choices: Vec<String> = ssh_keys.into_iter().map(|x| x.value).collect();
 
     let question = Question::select("ssh_key")
         .message("Select key to delete")
@@ -71,14 +64,11 @@ fn ask_key() -> Result<Key, KeyParsingError> {
 
             match key.pop() {
                 Some(result) => Ok(result),
-                _ => Err(KeyParsingError{})
+                _ => Err(KeyParsingError {}),
             }
         }
-        Err (_) => {
-            Err(KeyParsingError{})
-        }
+        Err(_) => Err(KeyParsingError {}),
     }
-
 }
 
 #[derive(Debug)]
@@ -87,9 +77,7 @@ struct Key {
 }
 
 #[derive(Debug)]
-struct KeyParsingError {
-
-}
+struct KeyParsingError {}
 
 fn list_ssh_keys() -> Result<Vec<Key>, io::Error> {
     let mut ssh_path = PathBuf::new();
@@ -103,10 +91,8 @@ fn list_ssh_keys() -> Result<Vec<Key>, io::Error> {
         .map(|r| {
             let path = r.unwrap().path();
             let path_string = String::from(path.to_str().unwrap());
-            Key{value: path_string}
+            Key { value: path_string }
         })
-        .filter(|r| {
-            r.value.contains("id_") && r.value.contains(".pub") == false
-        })
+        .filter(|r| r.value.contains("id_") && r.value.contains(".pub") == false)
         .collect())
 }
