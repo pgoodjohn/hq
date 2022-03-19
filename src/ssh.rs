@@ -9,7 +9,7 @@ use std::{thread, time};
 extern crate dirs;
 
 #[derive(Parser)]
-#[clap(version, about)]
+#[clap(version, about, arg_required_else_help(true))]
 pub struct SshCommand {
     #[clap(short, long)]
     debug: bool,
@@ -20,6 +20,7 @@ pub struct SshCommand {
 
 #[derive(Subcommand)]
 pub enum SshCommands {
+    /// Generate a new SSH Key
     Generate {},
 }
 

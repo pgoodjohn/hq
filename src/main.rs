@@ -3,7 +3,7 @@ mod ssh;
 mod utils;
 
 #[derive(Parser)]
-#[clap(version, about)]
+#[clap(version, about, arg_required_else_help(true))]
 struct Cli {
     #[clap(subcommand)]
     command: Option<Commands>,
