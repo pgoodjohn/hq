@@ -25,9 +25,6 @@ pub enum SshCommands {
 }
 
 pub fn command(ssh: &SshCommand) {
-    println!("SSH Command!");
-    super::utils::print_is_debug(&ssh.debug);
-
     match ssh.command {
         Some(SshCommands::Generate {}) => {
             key_generator::command().unwrap(); 

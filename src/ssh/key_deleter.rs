@@ -4,15 +4,12 @@ use std::io;
 use std::path::PathBuf;
 use std::vec::Vec;
 use std::process::Command;
+use log::{debug};
 extern crate dirs;
 
 pub fn command() -> Result<(), ()> {
-    println!("Adding key to the agent");
-
     let key = ask_key().unwrap();
-
-    println!("Deleting key {:?}", key);
-
+    debug!("Deleting {:?}", key);
     match delete_key(key) {
         Ok(_) => Ok(()),
         Err(_) => Ok(()),
@@ -21,7 +18,7 @@ pub fn command() -> Result<(), ()> {
 
 fn delete_key(key: Key) -> Result<(), KeyAddingError> {
 
-    println!("Deleting private key");
+    debug!("Deleting private key");
     Command::new("rm")
         .arg(String::from(&key.value))
         .spawn()
@@ -31,11 +28,11 @@ fn delete_key(key: Key) -> Result<(), KeyAddingError> {
     let public_key_extension: &str = ".pub";
     public_key_path.push_str(public_key_extension);
 
-    println!("Deleting public key");
-        Command::new("rm")
-            .arg(public_key_path)
-            .spawn()
-            .expect("ssh-add failed to run");
+    debug!("Deleting public key");
+    Command::new("rm")
+        .arg(public_key_path)
+        .spawn()
+        .expect("ssh-add failed to run");
     
     Ok(())
 }
@@ -54,7 +51,7 @@ fn ask_key() -> Result<Key, KeyParsingError> {
         .collect();
 
     let question = Question::select("ssh_key")
-        .message("Select key to add")
+        .message("Select key to delete")
         .choices(ssh_choices)
         .build();
 
@@ -63,7 +60,6 @@ fn ask_key() -> Result<Key, KeyParsingError> {
     match answer {
         Ok(result) => {
             let selected_key = &result.as_list_item().unwrap().text;
-            println!("{:?}", selected_key);
 
             let mut key: Vec<Key> = list_ssh_keys()
                 .unwrap()

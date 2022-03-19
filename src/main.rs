@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
+use log::{debug};
 mod ssh;
-mod utils;
+mod logger;
 
 #[derive(Parser)]
 #[clap(version, about, arg_required_else_help(true))]
@@ -14,8 +15,6 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Check that everything is working
-    Test {},
     /// Manage SSH keys and such
     Ssh(ssh::SshCommand)
 }
@@ -24,24 +23,16 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
 
-    // You can see how many times a particular flag or argument occurred
-    // Note, only flags can have multiple occurrences
-    match cli.debug {
-        true => println!("Enabling debug mode"),
-        false => {}
+    logger::init(cli.debug);
+
+    if cli.debug {
+        debug!("Debug mode enabled");
     }
 
     match cli.command {
-        Some(Commands::Test {}) => {
-            test_cli_command(&cli);
-        }
         Some(Commands::Ssh(command) )=> {
             ssh::command(&command);
         }
         None => {}
     }
-}
-
-fn test_cli_command(cli: &Cli) {
-    utils::print_is_debug(&cli.debug)
 }

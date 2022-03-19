@@ -5,15 +5,15 @@ use std::process::Command;
 use std::path::PathBuf;
 use std::{thread, time}; 
 use chrono::prelude::*;
+use log::{debug};
 
 pub fn command() -> Result<(), &'static str> {
-    println!("Generating new SSH Key");
     let encryption_type = ask_encryption_type().unwrap();
     let comment = ask_comment().unwrap();
     let path = ask_path(&encryption_type).unwrap();
     let password = ask_password().unwrap();
 
-    println!("Running SSH Keygen: ssh-keygen -t {} -C \"{}\" -f {}", encryption_type, comment.text, path.value);
+    debug!("Running SSH Keygen: ssh-keygen -t {} -C \"{}\" -f {}", encryption_type, comment.text, path.value);
 
     let mut ssh_keygen_command = Command::new("ssh-keygen");
 

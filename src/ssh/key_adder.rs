@@ -4,15 +4,12 @@ use std::io;
 use std::path::PathBuf;
 use std::vec::Vec;
 use std::process::{Command, Stdio};
+use log::{debug};
 extern crate dirs;
 
 pub fn command() -> Result<(), ()> {
-    println!("Adding key to the agent");
-
     let key = ask_key().unwrap();
-
-    println!("Adding key {:?}", key);
-
+    debug!("Adding key {:?}", key);
     match add_key(key) {
         Ok(_) => Ok(()),
         Err(_) => Ok(()),
@@ -57,8 +54,6 @@ fn ask_key() -> Result<Key, KeyParsingError> {
     match answer {
         Ok(result) => {
             let selected_key = &result.as_list_item().unwrap().text;
-            println!("{:?}", selected_key);
-
             let mut key: Vec<Key> = list_ssh_keys()
                 .unwrap()
                 .into_iter()
