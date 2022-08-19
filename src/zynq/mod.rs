@@ -1,6 +1,8 @@
 use clap::{Parser, Subcommand};
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use reqwest::{cookie::Jar, Url};
+use toml;
+extern crate dirs;
 
 #[derive(Parser)]
 #[clap(version, about, arg_required_else_help(true))]
@@ -20,12 +22,20 @@ pub enum ZynqCommands {
     // List {},
     // Cancel a day's booking
     // Cancel {},
+    /// Configurate authentication with the Zynq API
+    Auth {
+        #[clap(short, long)]
+        session_id: String,
+    },
 }
 
 pub fn command(zynq: &ZynqCommand) {
-    match zynq.command {
+    match zynq.command.as_ref() {
         Some(ZynqCommands::Book {}) => {
             book_desk_command();      
+        }
+        Some(ZynqCommands::Auth { session_id }) => {
+            authenticate_command(&session_id);
         }
         None => {}
     }
@@ -62,11 +72,13 @@ fn book_desk_command() {
 
     log::debug!("Making request to the Zynq API with body: {:?}", request_body);
 
-    let cookie = "sessionid=12345; Domain=zynq.io";
+    let config = Config::from_file(&config_path());
+
+    let cookie = format!("sessionid={}; Domain=zynq.io", config.session_id);
     let url = "https://zynq.io".parse::<Url>().unwrap();
 
     let jar = Jar::default();
-    jar.add_cookie_str(cookie, &url);
+    jar.add_cookie_str(&cookie, &url);
 
     let cookie_store = std::sync::Arc::new(jar);
 
@@ -79,4 +91,51 @@ fn book_desk_command() {
 
     log::debug!("Got response: {:?}", res.expect("could not unwrap").text());
     
+}
+
+fn authenticate_command(session_id: &String) {
+    log::debug!("saving session id");
+   let config = Config { session_id: String::from(session_id) };
+
+   config.save();
+
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct Config {
+    session_id: String
+}
+
+impl Config {
+    fn save(self: &Config) {
+        let new_config_str =
+            toml::to_string(self).expect("failed serialising config");
+
+        std::fs::write(config_path(), new_config_str).expect("failed to write config");
+    }
+
+    fn from_file(config_path: &std::path::Path) -> Self {
+        let contents = std::fs::read_to_string(config_path).expect("could not read config file");
+
+        let config: Config = toml::from_str(&contents).expect("Could not parse config");
+
+        config
+    }
+}
+
+fn config_path() -> std::path::PathBuf {
+    let mut config_path = std::path::PathBuf::new();
+
+    if cfg!(debug_assertions) {
+        config_path.push("/tmp/.hq/config/");
+    } else {
+        config_path.push(dirs::home_dir().unwrap());
+        config_path.push(".hq/config/");
+    }
+
+    std::fs::create_dir_all(&config_path).expect("could not create config directory");
+
+    config_path.push("zynq.toml");
+
+    config_path
 }
