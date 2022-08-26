@@ -1,11 +1,10 @@
 use clap::{Parser, Subcommand};
-use env_logger::DEFAULT_WRITE_STYLE_ENV;
-use serde::{Serialize, Deserialize};
+use serde::Serialize;
 use reqwest::{cookie::Jar, Url};
-use toml;
 use chrono::prelude::*;
-use chrono::naive;
 extern crate dirs;
+
+mod configuration;
 
 #[derive(Parser)]
 #[clap(version, about, arg_required_else_help(true))]
@@ -74,13 +73,17 @@ pub fn command(zynq: &ZynqCommand) {
 
 #[derive(Debug, Serialize)]
 struct MultidayBookRequest {
-    floorplanID: i32,
+    #[serde(rename="floorplanID")]
+    floorplan_id: i32,
     days: Vec<String>,
-    preferredSeatID: i32,
-    resourceType: String,
+    #[serde(rename="preferredSeatID")]
+    preferred_seat_id: i32,
+    #[serde(rename="resourceType")]
+    resource_type: String,
     start: String,
     end: String,
-    bookingLengthDays: i32,
+    #[serde(rename="bookingLengthDays")]
+    booking_length_days: i32,
 }
 
 struct MultiDayBookRequestBuilder<'a> {
@@ -138,7 +141,7 @@ impl<'a> MultiDayBookRequestBuilder<'a> {
     }
 
     fn period(mut self, from: Option<&'a String>, to: Option<&'a String>) -> Self {
-        if (self.days.len() > 0) {
+        if self.days.len() > 0 {
             // TODO: Better error handling for this
             panic!("Can't handle date and period together!");
         }
@@ -192,17 +195,15 @@ impl<'a> MultiDayBookRequestBuilder<'a> {
         self
     }
 
-    
-
     fn spawn(self) -> MultidayBookRequest {
         MultidayBookRequest {
-            floorplanID: self.floor_id.clone(),
+            floorplan_id: self.floor_id.clone(),
             days: self.days.clone(),
-            preferredSeatID: self.seat_id.clone(),
-            resourceType: String::from("DESK"),
+            preferred_seat_id: self.seat_id.clone(),
+            resource_type: String::from("DESK"),
             start: String::from("08:00"),
             end: String::from("17:00"),
-            bookingLengthDays: 0,
+            booking_length_days: 0,
         }
     }
 }
@@ -214,7 +215,7 @@ fn determine_period(from: NaiveDate, to: NaiveDate) -> Vec<String> {
         let dates_to_book: Vec<String> = from.iter_days().take(date_difference.num_days().try_into().expect("Something terrible happened")).map(
                 move |date| {
                     log::info!("{}", date);
-                match (date.weekday()) {
+                match date.weekday() {
                     Weekday::Sat => {
                         log::info!("{} is a Saturday, skipping it.", "%Y-%m-%d");
                         let no_date: String = String::from("");
@@ -265,8 +266,7 @@ fn book_desk_command(
 
     log::debug!("Making request to the Zynq API with body: {:?}", request);
 
-    let config = Config::from_file(&config_path());
-
+    let config = configuration::Configuration::load();
     let cookie = format!("sessionid={}; Domain=zynq.io", config.session_id);
     let url = "https://zynq.io".parse::<Url>().unwrap();
 
@@ -287,48 +287,9 @@ fn book_desk_command(
 }
 
 fn authenticate_command(session_id: &String) {
-    log::debug!("saving session id");
-   let config = Config { session_id: String::from(session_id) };
+   log::debug!("saving session id");
+   let config = configuration::Configuration::new(session_id);
 
    config.save();
-
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-struct Config {
-    session_id: String
-}
-
-impl Config {
-    fn save(self: &Config) {
-        let new_config_str =
-            toml::to_string(self).expect("failed serialising config");
-
-        std::fs::write(config_path(), new_config_str).expect("failed to write config");
-    }
-
-    fn from_file(config_path: &std::path::Path) -> Self {
-        let contents = std::fs::read_to_string(config_path).expect("could not read config file");
-
-        let config: Config = toml::from_str(&contents).expect("Could not parse config");
-
-        config
-    }
-}
-
-fn config_path() -> std::path::PathBuf {
-    let mut config_path = std::path::PathBuf::new();
-
-    if cfg!(debug_assertions) {
-        config_path.push("/tmp/.hq/config/");
-    } else {
-        config_path.push(dirs::home_dir().unwrap());
-        config_path.push(".hq/config/");
-    }
-
-    std::fs::create_dir_all(&config_path).expect("could not create config directory");
-
-    config_path.push("zynq.toml");
-
-    config_path
-}
