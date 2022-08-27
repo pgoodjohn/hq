@@ -34,10 +34,8 @@ fn main() {
     match cli.command {
         Some(Commands::Ssh(command)) => {
             ssh::command(&command);
-        },
-        Some(Commands::Zynq(command)) => {
-            zynq::command(&command)
-        } 
+        }
+        Some(Commands::Zynq(command)) => zynq::command(&command),
         None => {}
     }
 }

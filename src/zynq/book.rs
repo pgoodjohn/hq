@@ -1,17 +1,17 @@
-use std::error::Error;
-use serde::{Deserialize, Serialize};
+use super::configuration;
 use chrono::prelude::*;
 use reqwest::{cookie::Jar, Url};
-use super::configuration;
+use serde::{Deserialize, Serialize};
+use std::error::Error;
 use std::fmt;
 
-pub fn command (
-       floor: Option<&i32>,
-       seat: Option<&i32>,
-       date: Option<&String>,
-       from: Option<&String>,
-       to: Option<&String>
-    ) -> Result<(), ZynqCommandError>{
+pub fn command(
+    floor: Option<&i32>,
+    seat: Option<&i32>,
+    date: Option<&String>,
+    from: Option<&String>,
+    to: Option<&String>,
+) -> Result<(), ZynqCommandError> {
     log::debug!("Book desk command triggered");
 
     let request = MultiDayBookRequestBuilder::new()
@@ -20,7 +20,6 @@ pub fn command (
         .date(date)
         .period(from, to)
         .spawn();
-
 
     log::debug!("Making request to the Zynq API with body: {:?}", request);
 
@@ -35,9 +34,11 @@ pub fn command (
 
     let client = reqwest::blocking::Client::builder()
         .cookie_provider(cookie_store)
-        .build().expect("failed to build http client");
+        .build()
+        .expect("failed to build http client");
 
-    let res: ZynqApiResponse = client.post("https://zynq.io/seating/api/book_multiday")
+    let res: ZynqApiResponse = client
+        .post("https://zynq.io/seating/api/book_multiday")
         .json(&request)
         .send()
         .expect("failed to perform HTTP request to the zynq api")
@@ -46,47 +47,55 @@ pub fn command (
 
     match res.status {
         ZynqApiResponseStatus::Failed => {
-           log::debug!("Failed API request: {:?}", res);
-           return Err(
-               ZynqCommandError::new(
-                   &res.reason.unwrap_or(String::from("No error message was actually provided by the API")
-                ).to_string())
-           );
-        },
+            log::debug!("Failed API request: {:?}", res);
+            return Err(ZynqCommandError::new(
+                &res.reason
+                    .unwrap_or(String::from(
+                        "No error message was actually provided by the API",
+                    ))
+                    .to_string(),
+            ));
+        }
         ZynqApiResponseStatus::Success => {
             log::debug!("Api rquest was successful");
             log::debug!("Got response: {:?}", res);
 
-            for day in res.booked_days.expect("there should be a thing here").iter() {
+            for day in res
+                .booked_days
+                .expect("there should be a thing here")
+                .iter()
+            {
                 log::info!("Reserved desk for {:?}", day);
             }
-        },
+        }
     }
-    
+
     Ok(())
 }
 
 #[derive(Debug)]
 pub struct ZynqCommandError {
-    details: String
+    details: String,
 }
 
 impl ZynqCommandError {
     fn new(error_message: &str) -> ZynqCommandError {
-            ZynqCommandError{details: error_message.to_string()}
+        ZynqCommandError {
+            details: error_message.to_string(),
         }
+    }
 }
 
 impl fmt::Display for ZynqCommandError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            write!(f,"{}",self.details)
-        }
+        write!(f, "{}", self.details)
+    }
 }
 
 impl Error for ZynqCommandError {
     fn description(&self) -> &str {
-            &self.details
-        }
+        &self.details
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -95,31 +104,31 @@ struct ZynqApiResponse {
     reason: Option<String>,
     _failed_days: Option<Vec<String>>,
     booked_days: Option<Vec<String>>,
-    #[serde(rename="verifyURL")]
+    #[serde(rename = "verifyURL")]
     _verify_url: Option<String>,
-    _warning: Option<String>
+    _warning: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 enum ZynqApiResponseStatus {
-    #[serde(rename="success")]
+    #[serde(rename = "success")]
     Success,
-    #[serde(rename="failed")]
-    Failed
+    #[serde(rename = "failed")]
+    Failed,
 }
 
 #[derive(Debug, Serialize)]
 struct MultidayBookRequest {
-    #[serde(rename="floorplanID")]
+    #[serde(rename = "floorplanID")]
     floorplan_id: i32,
     days: Vec<String>,
-    #[serde(rename="preferredSeatID")]
+    #[serde(rename = "preferredSeatID")]
     preferred_seat_id: i32,
-    #[serde(rename="resourceType")]
+    #[serde(rename = "resourceType")]
     resource_type: String,
     start: String,
     end: String,
-    #[serde(rename="bookingLengthDays")]
+    #[serde(rename = "bookingLengthDays")]
     booking_length_days: i32,
 }
 
@@ -129,11 +138,10 @@ struct MultiDayBookRequestBuilder<'a> {
     seat_id: &'a i32,
 }
 
-impl<'a> MultiDayBookRequestBuilder<'a> { 
-
+impl<'a> MultiDayBookRequestBuilder<'a> {
     fn new() -> MultiDayBookRequestBuilder<'a> {
         let empty_days_vec = Vec::<String>::new();
-        MultiDayBookRequestBuilder{
+        MultiDayBookRequestBuilder {
             floor_id: &558, // Default here should load from config
             days: empty_days_vec,
             seat_id: &20606, // default here should load from config
@@ -144,8 +152,8 @@ impl<'a> MultiDayBookRequestBuilder<'a> {
         match floor_id {
             Some(floor) => {
                 self.floor_id = floor;
-            },
-            None => {},
+            }
+            None => {}
         }
 
         self
@@ -155,10 +163,10 @@ impl<'a> MultiDayBookRequestBuilder<'a> {
         match seat_id {
             Some(seat) => {
                 self.seat_id = seat;
-            },
-            None => {},
+            }
+            None => {}
         }
-        
+
         self
     }
 
@@ -166,26 +174,21 @@ impl<'a> MultiDayBookRequestBuilder<'a> {
         match date {
             Some(date) => {
                 self.days.push(String::from(date));
-            },
-            None => {},
+            }
+            None => {}
         }
 
         self
     }
 
     fn period(mut self, from: Option<&'a String>, to: Option<&'a String>) -> Self {
-        if self.days.len() > 0 {
-            // TODO: Better error handling for this
-            panic!("Can't handle date and period together!");
-        }
-
         let from_date_string: &'a String;
         let to_date_string: &'a String;
 
         match from {
             Some(date) => {
-                from_date_string = date; 
-            },
+                from_date_string = date;
+            }
             None => {
                 return self;
             }
@@ -194,22 +197,23 @@ impl<'a> MultiDayBookRequestBuilder<'a> {
         match to {
             Some(date) => {
                 to_date_string = date;
-            },
+            }
             None => {
                 return self;
             }
         }
 
-        let from_date_naive = NaiveDate::parse_from_str(from_date_string, "%Y-%m-%d").expect("Failed to parse from date");
-        let to_date_naive = NaiveDate::parse_from_str(to_date_string, "%Y-%m-%d").expect("Failed to parse from date");
-       
+        let from_date_naive = NaiveDate::parse_from_str(from_date_string, "%Y-%m-%d")
+            .expect("Failed to parse from date");
+        let to_date_naive = NaiveDate::parse_from_str(to_date_string, "%Y-%m-%d")
+            .expect("Failed to parse from date");
+
         if to_date_naive.num_days_from_ce() < from_date_naive.num_days_from_ce() {
             panic!("To date needs to be after from date");
         }
 
         let dates_to_book = determine_period(from_date_naive, to_date_naive);
 
-       
         self.set_dates(dates_to_book);
 
         log::debug!("Prepared dates to book via period {:?}", self.days);
@@ -218,10 +222,11 @@ impl<'a> MultiDayBookRequestBuilder<'a> {
     }
 
     fn set_dates(&mut self, dates_vec: Vec<String>) -> &Self {
-
         log::debug!("Setting dates for request to: {:?}", dates_vec);
 
-        dates_vec.iter().for_each(|date| self.days.push(date.to_string()));
+        dates_vec
+            .iter()
+            .for_each(|date| self.days.push(date.to_string()));
 
         log::debug!("Set dates for request to: {:?}", self.days);
 
@@ -242,37 +247,44 @@ impl<'a> MultiDayBookRequestBuilder<'a> {
 }
 
 fn determine_period(from: NaiveDate, to: NaiveDate) -> Vec<String> {
+    // Add one day to make from/to inclusive when booking dates
+    let date_difference = to - from + chrono::Duration::days(1);
 
-    let date_difference = to - from;
+    log::debug!("Date difference is {}", &date_difference.num_days());
 
-        let dates_to_book: Vec<String> = from.iter_days().take(date_difference.num_days().try_into().expect("Something terrible happened")).map(
-                move |date| {
-                    log::info!("{}", date);
-                match date.weekday() {
-                    Weekday::Sat => {
-                        log::info!("{} is a Saturday, skipping it.", date.format("%Y-%m-%d"));
-                        let no_date: String = String::from("");
-                        return no_date;
-                    },
-                    Weekday::Sun => {
-                        log::info!("{} is a Sunday, skipping it.", date.format("%Y-%m-%d"));
-                        let no_date: String = String::from("");
-                        return no_date;
-                    }
-                    _ => {
-                        return format_date(date);
-                    }
+    let dates_to_book: Vec<String> = from
+        .iter_days()
+        .take(
+            date_difference
+                .num_days()
+                .try_into()
+                .expect("Something terrible happened"),
+        )
+        .map(move |date| match date.weekday() {
+            Weekday::Sat => {
+                log::info!("{} is a Saturday, skipping it.", date.format("%Y-%m-%d"));
+                let no_date: String = String::from("");
+                return no_date;
             }
-        }).filter(|x| x.eq(&"") == false).collect();
+            Weekday::Sun => {
+                log::info!("{} is a Sunday, skipping it.", date.format("%Y-%m-%d"));
+                let no_date: String = String::from("");
+                return no_date;
+            }
+            _ => {
+                return format_date(date);
+            }
+        })
+        .filter(|x| x.eq(&"") == false)
+        .collect();
 
-        log::debug!("Prepared dates to book: {:?}", dates_to_book);
+    log::debug!("Prepared dates to book: {:?}", dates_to_book);
 
     return dates_to_book;
 }
 
 fn format_date(date: NaiveDate) -> String {
-        let string_date = date.format("%Y-%m-%d").to_string();
+    let string_date = date.format("%Y-%m-%d").to_string();
 
-        return string_date;
-    }
-
+    return string_date;
+}

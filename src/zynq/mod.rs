@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 
-mod configuration;
 mod book;
+mod configuration;
 
 #[derive(Parser)]
 #[clap(version, about, arg_required_else_help(true))]
@@ -19,17 +19,17 @@ pub enum ZynqCommands {
     Book {
         #[clap(long)]
         floor: Option<i32>,
-        #[clap(short,long)]
+        #[clap(short, long)]
         seat: Option<i32>,
 
-        #[clap(short,long, conflicts_with="from", conflicts_with="to")]
+        #[clap(short, long, conflicts_with = "from", conflicts_with = "to")]
         date: Option<String>,
 
-        #[clap(short,long, conflicts_with="date", requires="to")]
+        #[clap(short, long, conflicts_with = "date", requires = "to")]
         from: Option<String>,
 
-        #[clap(short,long, conflicts_with="date", requires="from")]
-        to: Option<String>
+        #[clap(short, long, conflicts_with = "date", requires = "from")]
+        to: Option<String>,
     },
     // See bookable desks
     // List {},
@@ -49,14 +49,14 @@ pub fn command(zynq: &ZynqCommand) {
             seat,
             date,
             from,
-            to
+            to,
         }) => {
             book::command(
                 floor.as_ref(),
                 seat.as_ref(),
                 date.as_ref(),
                 from.as_ref(),
-                to.as_ref()
+                to.as_ref(),
             )
             .expect("Failed to book a desk 😭");
         }
@@ -65,12 +65,10 @@ pub fn command(zynq: &ZynqCommand) {
         }
         None => {}
     }
-
 }
 fn authenticate_command(session_id: &String) {
-   log::debug!("saving session id");
-   let config = configuration::Configuration::new(session_id);
+    log::debug!("saving session id");
+    let config = configuration::Configuration::new(session_id);
 
-   config.save();
+    config.save();
 }
-

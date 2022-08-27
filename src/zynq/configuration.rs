@@ -1,14 +1,14 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use toml;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Configuration {
-    pub session_id: String
+    pub session_id: String,
 }
 
 impl Configuration {
     pub fn new(session_id: &String) -> Self {
         Configuration {
-            session_id: String::from(session_id)
+            session_id: String::from(session_id),
         }
     }
 
@@ -20,9 +20,11 @@ impl Configuration {
 
     pub fn load() -> Self {
         let config_path = config_path();
-        let contents = std::fs::read_to_string(config_path).expect("Could not read configuration file");
-        
-        let config: Configuration = toml::from_str(&contents).expect("Failed to read configuration file contents");
+        let contents =
+            std::fs::read_to_string(config_path).expect("Could not read configuration file");
+
+        let config: Configuration =
+            toml::from_str(&contents).expect("Failed to read configuration file contents");
 
         config
     }
