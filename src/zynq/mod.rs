@@ -22,13 +22,13 @@ pub enum ZynqCommands {
         #[clap(short,long)]
         seat: Option<i32>,
 
-        #[clap(short,long)]
+        #[clap(short,long, conflicts_with="from", conflicts_with="to")]
         date: Option<String>,
 
-        #[clap(short,long)]
+        #[clap(short,long, conflicts_with="date", requires="to")]
         from: Option<String>,
 
-        #[clap(short,long)]
+        #[clap(short,long, conflicts_with="date", requires="from")]
         to: Option<String>
     },
     // See bookable desks

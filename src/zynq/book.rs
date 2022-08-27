@@ -56,6 +56,10 @@ pub fn command (
         ZynqApiResponseStatus::Success => {
             log::debug!("Api rquest was successful");
             log::debug!("Got response: {:?}", res);
+
+            for day in res.booked_days.expect("there should be a thing here").iter() {
+                log::info!("Reserved desk for {:?}", day);
+            }
         },
     }
     
@@ -89,11 +93,11 @@ impl Error for ZynqCommandError {
 struct ZynqApiResponse {
     status: ZynqApiResponseStatus,
     reason: Option<String>,
-    failed_days: Option<Vec<String>>,
+    _failed_days: Option<Vec<String>>,
     booked_days: Option<Vec<String>>,
     #[serde(rename="verifyURL")]
-    verify_url: Option<String>,
-    warning: Option<String>
+    _verify_url: Option<String>,
+    _warning: Option<String>
 }
 
 #[derive(Debug, Deserialize)]
@@ -159,10 +163,6 @@ impl<'a> MultiDayBookRequestBuilder<'a> {
     }
 
     fn date(mut self, date: Option<&String>) -> Self {
-        assert_eq!(0, self.days.len());
-
-        // TODO: Validate dates!!
-
         match date {
             Some(date) => {
                 self.days.push(String::from(date));
@@ -250,12 +250,12 @@ fn determine_period(from: NaiveDate, to: NaiveDate) -> Vec<String> {
                     log::info!("{}", date);
                 match date.weekday() {
                     Weekday::Sat => {
-                        log::info!("{} is a Saturday, skipping it.", "%Y-%m-%d");
+                        log::info!("{} is a Saturday, skipping it.", date.format("%Y-%m-%d"));
                         let no_date: String = String::from("");
                         return no_date;
                     },
                     Weekday::Sun => {
-                        log::info!("{} is a Sunday, skipping it.", "%Y-%m-%d");
+                        log::info!("{} is a Sunday, skipping it.", date.format("%Y-%m-%d"));
                         let no_date: String = String::from("");
                         return no_date;
                     }
