@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 
 mod book;
+mod config;
 mod configuration;
 
 #[derive(Parser)]
@@ -35,11 +36,8 @@ pub enum ZynqCommands {
     // List {},
     // Cancel a day's booking
     // Cancel {},
-    /// Configurate authentication with the Zynq API
-    Auth {
-        #[clap(short, long)]
-        session_id: String,
-    },
+    /// Configure the Zynq command
+    Config(config::ConfigCommand)
 }
 
 pub fn command(zynq: &ZynqCommand) {
@@ -60,15 +58,9 @@ pub fn command(zynq: &ZynqCommand) {
             )
             .expect("Failed to book a desk 😭");
         }
-        Some(ZynqCommands::Auth { session_id }) => {
-            authenticate_command(&session_id);
+        Some(ZynqCommands::Config(command)) => {
+            config::command(command);
         }
         None => {}
     }
-}
-fn authenticate_command(session_id: &String) {
-    log::debug!("saving session id");
-    let config = configuration::Configuration::new(session_id);
-
-    config.save();
 }
