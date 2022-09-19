@@ -7,9 +7,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-clap = { version = "3.1", features = ["derive"] }
+clap = { version = "3.2", features = ["derive"] }
 requestty = "0.3.0"
 chrono = "0.4"
 dirs = "4.0"
 log = "0.4"
 env_logger = "0.9"
+reqwest = { version = "0.11", features = ["blocking", "json", "cookies"]}
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.5"
