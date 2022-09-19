@@ -7,7 +7,7 @@ pub struct ConfigCommand {
     debug: bool,
 
     #[clap(subcommand)]
-    command: ConfigCommands
+    command: ConfigCommands,
 }
 
 #[derive(Subcommand)]
@@ -20,29 +20,30 @@ pub enum ConfigCommands {
     /// Specify your preferred floor
     Floor,
     /// Specify your preferred desk
-    Desk
+    Desk,
 }
 
 pub fn command(config: &ConfigCommand) {
-
     match &config.command {
-        ConfigCommands::Auth{ session_id } => {
+        ConfigCommands::Auth { session_id } => {
             authenticate_command(&session_id);
-        },
+        }
         ConfigCommands::Floor => {
             todo!("Build floor command");
-        },
+        }
         ConfigCommands::Desk => {
             todo!("Build desk command");
         }
     }
-
 }
 
 fn authenticate_command(session_id: &String) {
     log::debug!("Saving session id {}", session_id);
 
-    let config = super::configuration::Configuration::new(session_id);
+    let mut config = super::configuration::Configuration::load_or_create()
+        .expect("could not load / create config file");
+
+    config.session_id = Some(String::from(session_id));
 
     config.save();
 }

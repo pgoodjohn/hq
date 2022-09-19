@@ -35,9 +35,8 @@ pub enum ZynqCommands {
     // See bookable desks
     // List {},
     // Cancel a day's booking
-    // Cancel {},
     /// Configure the Zynq command
-    Config(config::ConfigCommand)
+    Config(config::ConfigCommand),
 }
 
 pub fn command(zynq: &ZynqCommand) {
@@ -49,14 +48,29 @@ pub fn command(zynq: &ZynqCommand) {
             from,
             to,
         }) => {
-            book::command(
+            match book::command(
                 floor.as_ref(),
                 seat.as_ref(),
                 date.as_ref(),
                 from.as_ref(),
                 to.as_ref(),
-            )
-            .expect("Failed to book a desk 😭");
+            ) {
+                Ok(r) => match r.days {
+                    Some(days) => {
+                        for day in days.into_iter() {
+                            log::info!("Booked desk for {}", day);
+                            return;
+                        }
+                    }
+                    None => {
+                        log::info!("Booking request was successful, but no new days were booked.");
+                        log::info!("Do you already have a desk booked? Zynq doesn't tell me 😢");
+                    }
+                },
+                Err(e) => {
+                    log::error!("{}", e);
+                }
+            }
         }
         Some(ZynqCommands::Config(command)) => {
             config::command(command);

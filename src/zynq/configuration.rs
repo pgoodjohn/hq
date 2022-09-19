@@ -1,32 +1,50 @@
 use serde::{Deserialize, Serialize};
 use toml;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Configuration {
-    pub session_id: String,
+    pub session_id: Option<String>,
+    pub preferred_seat_id: Option<String>,
 }
 
 impl Configuration {
-    pub fn new(session_id: &String) -> Self {
-        Configuration {
-            session_id: String::from(session_id),
-        }
-    }
-
     pub fn save(self: &Configuration) {
         let new_config_str = toml::to_string(self).expect("failed serialising config");
 
         std::fs::write(config_path(), new_config_str).expect("failed to write config");
     }
 
-    pub fn load() -> Self {
+    pub fn load() -> Result<Self, String> {
         let config_path = config_path();
-        let contents =
-            std::fs::read_to_string(config_path).expect("Could not read configuration file");
+        match std::fs::read_to_string(config_path) {
+            Ok(contents) => {
+                let config: Configuration = toml::from_str(&contents).unwrap();
 
-        let config: Configuration =
-            toml::from_str(&contents).expect("Failed to read configuration file contents");
+                return Ok(config);
+            }
+            Err(e) => {
+                log::debug!("{}", e.to_string());
+                return Err(
+                    String::from("Could not load configuration. Please run hq zynq config auth to set up your authentication with the Zynq API")
+                );
+            }
+        }
+    }
 
-        config
+    pub fn load_or_create() -> Result<Self, String> {
+        let config_path = config_path();
+
+        if config_path.exists() == false {
+            let config = Configuration {
+                session_id: None,
+                preferred_seat_id: None,
+            };
+            config.save();
+
+            return Ok(config);
+        }
+
+        return Configuration::load();
     }
 }
 

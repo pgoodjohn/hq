@@ -1,5 +1,6 @@
-use super::configuration;
+use super::configuration::{self, Configuration};
 use chrono::prelude::*;
+use reqwest::blocking::Client;
 use reqwest::{cookie::Jar, Url};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -11,7 +12,7 @@ pub fn command(
     date: Option<&String>,
     from: Option<&String>,
     to: Option<&String>,
-) -> Result<(), ZynqCommandError> {
+) -> Result<ZynqBookingSuccessful, ZynqCommandError> {
     log::debug!("Book desk command triggered");
 
     let request = MultiDayBookRequestBuilder::new()
@@ -23,21 +24,13 @@ pub fn command(
 
     log::debug!("Making request to the Zynq API with body: {:?}", request);
 
-    let config = configuration::Configuration::load();
-    let cookie = format!("sessionid={}; Domain=zynq.io", config.session_id);
-    let url = "https://zynq.io".parse::<Url>().unwrap();
+    let config =
+        configuration::Configuration::load().map_err(|err| ZynqCommandError { details: err })?;
 
-    let jar = Jar::default();
-    jar.add_cookie_str(&cookie, &url);
+    let zynq_client = ZynqApiClient::spawn(config);
 
-    let cookie_store = std::sync::Arc::new(jar);
-
-    let client = reqwest::blocking::Client::builder()
-        .cookie_provider(cookie_store)
-        .build()
-        .expect("failed to build http client");
-
-    let res: ZynqApiResponse = client
+    let res: ZynqApiResponse = zynq_client
+        .client
         .post("https://zynq.io/seating/api/book_multiday")
         .json(&request)
         .send()
@@ -60,17 +53,43 @@ pub fn command(
             log::debug!("Api rquest was successful");
             log::debug!("Got response: {:?}", res);
 
-            for day in res
-                .booked_days
-                .expect("there should be a thing here")
-                .iter()
-            {
-                log::info!("Reserved desk for {:?}", day);
+            if res.booked_days.is_some_and(|x| x.len() == 0) {
+                return Ok(ZynqBookingSuccessful { days: None });
             }
+
+            Ok(ZynqBookingSuccessful {
+                days: res.booked_days.to_owned(),
+            })
         }
     }
+}
 
-    Ok(())
+pub struct ZynqApiClient {
+    client: Client,
+}
+
+impl ZynqApiClient {
+    fn spawn(configuration: Configuration) -> Self {
+        match configuration.session_id {
+            Some(session_id) => {
+                let cookie = format!("sessionid={}; Domain=zynq.io", session_id);
+                let url = "https://zynq.io".parse::<Url>().unwrap();
+
+                let jar = Jar::default();
+                jar.add_cookie_str(&cookie, &url);
+
+                let cookie_store = std::sync::Arc::new(jar);
+
+                let client = reqwest::blocking::Client::builder()
+                    .cookie_provider(cookie_store)
+                    .build()
+                    .expect("failed to build http client");
+
+                Self { client }
+            }
+            None => panic!("Please configure a session id"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -96,6 +115,10 @@ impl Error for ZynqCommandError {
     fn description(&self) -> &str {
         &self.details
     }
+}
+
+pub struct ZynqBookingSuccessful {
+    pub days: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]
