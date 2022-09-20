@@ -1,10 +1,13 @@
 use serde::{Deserialize, Serialize};
 use toml;
 
+use super::config::Floors;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Configuration {
     pub session_id: Option<String>,
     pub preferred_seat_id: Option<String>,
+    pub preferred_floor_id: Option<i32>,
 }
 
 impl Configuration {
@@ -38,6 +41,7 @@ impl Configuration {
             let config = Configuration {
                 session_id: None,
                 preferred_seat_id: None,
+                preferred_floor_id: None,
             };
             config.save();
 
@@ -45,6 +49,13 @@ impl Configuration {
         }
 
         return Configuration::load();
+    }
+
+    pub fn floor(&self) -> Option<Floors> {
+        match self.preferred_floor_id {
+            Some(floor_api_value) => return Some(Floors::from_api_value(floor_api_value)),
+            None => return None
+        } 
     }
 }
 
