@@ -22,17 +22,36 @@ pub enum ConfigCommands {
     },
     /// Specify your preferred floor
     Floor,
+    /// Set up all the necessary values for the Zynq API to work
+    Init,
     /// Specify your preferred desk
     Desk,
 }
 
-pub fn command(config: &ConfigCommand) {
+pub fn command(config: &ConfigCommand) -> Result<(), super::ZynqCommandError>{
     match &config.command {
         ConfigCommands::Auth { session_id } => {
             authenticate_command(&session_id);
+            Ok(())
         }
         ConfigCommands::Floor => {
             floor_command();
+            Ok(())
+        },
+        ConfigCommands::Init => {
+            match init_command() {
+                Ok(_) => {
+                    log::info!("Configuration was successful, you are ready to book a desk with hq zynq book");
+                    return Ok(())
+                }
+                Err(e) => {
+                    log::error!("Something went wrong with configuring the Zynq CLI");
+                    log::error!("{}", e);
+                    log::error!("Please try again");
+
+                    return Err(e);
+                }
+            }
         }
         ConfigCommands::Desk => {
             todo!("Build desk command");
@@ -84,14 +103,6 @@ impl Floors {
     }
 }
 
-/*
-impl std::fmt::Display for Floors {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{}", self.to_string())
-        }
-}
-*/
-
 fn floor_command() {
     log::debug!("Setting preferred floor");
 
@@ -103,6 +114,22 @@ fn floor_command() {
         None => log::info!("No preferred floor is currently set, let's set it up!"),
     }
 
+    let preferred_floor_answer = ask_preferred_floor_question();
+
+    match preferred_floor_answer {
+        Ok(floor) => {
+            config.preferred_floor_id = Some(floor.api_values());
+        }
+        Err(e) => {
+            panic!("{:?}", e);
+        }
+    }
+
+    config.save();
+
+}
+
+fn ask_preferred_floor_question() -> Result<Floors, super::ZynqCommandError> {
     let question = Question::select("preferred_floor")
         .message("Select your preferred floor")
         .choices(vec![
@@ -118,12 +145,66 @@ fn floor_command() {
     match answer {
         Ok(result) => {
             let chosen_value = Floors::from_str(&result.as_list_item().unwrap().text).unwrap();
-            log::debug!("{:?}", &chosen_value);
-            config.preferred_floor_id = Some(chosen_value.api_values());
-            config.save();
+            return Ok(chosen_value);
         }
         Err(e) => {
-            panic!("{}", e)
+            return Err(super::ZynqCommandError::new("wtf"));
         }
     }
+}
+
+fn init_command() -> Result<(), super::ZynqCommandError>{
+    log::debug!("Running interactive configuration for the Zynq Command");
+
+    let mut config = super::configuration::Configuration::load_or_create()
+        .expect("could not load / create configuration file");
+
+    let session_id_answer = ask_session_id_question();
+
+    match session_id_answer {
+        Ok(session_id) => {
+            log::debug!("{:?}", session_id);
+            config.session_id = Some(session_id);
+        },
+        Err(_e) => {
+            return Err(super::ZynqCommandError::new("Please retry with a valid session id"))
+        }
+    }
+
+    let preferred_floor_answer = ask_preferred_floor_question();
+
+    match preferred_floor_answer {
+        Ok(floor) => {
+            config.preferred_floor_id = Some(floor.api_values());
+        }
+        Err(_e) => {
+            return Err(super::ZynqCommandError::new("Something went wrong with setting up the preferred floor, try again"));
+        }
+    }
+
+    config.save();
+
+    Ok(())
+}
+
+fn ask_session_id_question() -> Result<String, String> {
+
+    let session_id_question = Question::input("session_id")
+        .message("What is your Session ID? To find it, you will need to inspect the cookies of one of the requests to the Zynq API made by your browser after having logged in.")
+        .build();
+
+    let session_id_answer = requestty::prompt_one(session_id_question);
+
+    match session_id_answer {
+        Ok(result) => {
+            let session_id_string = String::from(result.as_string().unwrap());
+
+            if session_id_string.len() == 0 {
+                return Err(String::from("Please input a valid value"))
+            }
+
+            return Ok(String::from(result.as_string().unwrap()));
+        },
+        Err(_e) => return Err(String::from("Please input a valid value"))
+    } 
 }

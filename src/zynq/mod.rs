@@ -1,4 +1,6 @@
 use clap::{Parser, Subcommand};
+use std::fmt;
+use std::error::Error;
 
 mod book;
 mod config;
@@ -36,6 +38,33 @@ pub enum ZynqCommands {
     /// Configure the Zynq command
     Config(config::ConfigCommand),
 }
+
+#[derive(Debug)]
+pub struct ZynqCommandError {
+    details: String,
+}
+
+impl ZynqCommandError {
+    fn new(error_message: &str) -> ZynqCommandError {
+        ZynqCommandError {
+            details: error_message.to_string(),
+        }
+    }
+}
+
+impl fmt::Display for ZynqCommandError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.details)
+    }
+}
+
+impl Error for ZynqCommandError {
+    fn description(&self) -> &str {
+        &self.details
+    }
+}
+
+
 
 pub fn command(zynq: &ZynqCommand) {
     match zynq.command.as_ref() {

@@ -4,8 +4,8 @@ use chrono::prelude::*;
 use reqwest::blocking::Client;
 use reqwest::{cookie::Jar, Url};
 use serde::{Deserialize, Serialize};
-use std::error::Error;
-use std::fmt;
+
+use super::ZynqCommandError;
 
 pub fn command(
     seat: Option<&i32>,
@@ -94,31 +94,6 @@ impl ZynqApiClient {
             }
             None => panic!("Please configure a session id"),
         }
-    }
-}
-
-#[derive(Debug)]
-pub struct ZynqCommandError {
-    details: String,
-}
-
-impl ZynqCommandError {
-    fn new(error_message: &str) -> ZynqCommandError {
-        ZynqCommandError {
-            details: error_message.to_string(),
-        }
-    }
-}
-
-impl fmt::Display for ZynqCommandError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.details)
-    }
-}
-
-impl Error for ZynqCommandError {
-    fn description(&self) -> &str {
-        &self.details
     }
 }
 
