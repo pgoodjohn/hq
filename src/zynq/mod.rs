@@ -18,8 +18,6 @@ pub struct ZynqCommand {
 pub enum ZynqCommands {
     /// Book a desk
     Book {
-        #[clap(long)]
-        floor: Option<i32>,
         #[clap(short, long)]
         seat: Option<i32>,
 
@@ -42,36 +40,27 @@ pub enum ZynqCommands {
 pub fn command(zynq: &ZynqCommand) {
     match zynq.command.as_ref() {
         Some(ZynqCommands::Book {
-            floor,
             seat,
             date,
             from,
             to,
-        }) => {
-            match book::command(
-                floor.as_ref(),
-                seat.as_ref(),
-                date.as_ref(),
-                from.as_ref(),
-                to.as_ref(),
-            ) {
-                Ok(r) => match r.days {
-                    Some(days) => {
-                        for day in days.into_iter() {
-                            log::info!("Booked desk for {}", day);
-                            return;
-                        }
+        }) => match book::command(seat.as_ref(), date.as_ref(), from.as_ref(), to.as_ref()) {
+            Ok(r) => match r.days {
+                Some(days) => {
+                    for day in days.into_iter() {
+                        log::info!("Booked desk for {}", day);
+                        return;
                     }
-                    None => {
-                        log::info!("Booking request was successful, but no new days were booked.");
-                        log::info!("Do you already have a desk booked? Zynq doesn't tell me 😢");
-                    }
-                },
-                Err(e) => {
-                    log::error!("{}", e);
                 }
+                None => {
+                    log::info!("Booking request was successful, but no new days were booked.");
+                    log::info!("Do you already have a desk booked? Zynq doesn't tell me 😢");
+                }
+            },
+            Err(e) => {
+                log::error!("{}", e);
             }
-        }
+        },
         Some(ZynqCommands::Config(command)) => {
             config::command(command);
         }

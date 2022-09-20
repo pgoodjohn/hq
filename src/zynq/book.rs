@@ -1,3 +1,4 @@
+use super::config::Floors;
 use super::configuration::{self, Configuration};
 use chrono::prelude::*;
 use reqwest::blocking::Client;
@@ -7,7 +8,6 @@ use std::error::Error;
 use std::fmt;
 
 pub fn command(
-    floor: Option<&i32>,
     seat: Option<&i32>,
     date: Option<&String>,
     from: Option<&String>,
@@ -15,17 +15,22 @@ pub fn command(
 ) -> Result<ZynqBookingSuccessful, ZynqCommandError> {
     log::debug!("Book desk command triggered");
 
+    let config =
+        configuration::Configuration::load().map_err(|err| ZynqCommandError { details: err })?;
+
+    match config.floor() {
+        Some(floor) => log::debug!("Preparing to book a desk on {}", floor.to_string()),
+        None => return Err(ZynqCommandError::new("Please chose a preferred flore before trying to book"))
+    }
+
     let request = MultiDayBookRequestBuilder::new()
         .seat(seat)
-        .floor(floor)
+        .floor(config.floor())
         .date(date)
         .period(from, to)
         .spawn();
 
     log::debug!("Making request to the Zynq API with body: {:?}", request);
-
-    let config =
-        configuration::Configuration::load().map_err(|err| ZynqCommandError { details: err })?;
 
     let zynq_client = ZynqApiClient::spawn(config);
 
@@ -143,7 +148,7 @@ enum ZynqApiResponseStatus {
 #[derive(Debug, Serialize)]
 struct MultidayBookRequest {
     #[serde(rename = "floorplanID")]
-    floorplan_id: i32,
+    floorplan_id: Option<i32>,
     days: Vec<String>,
     #[serde(rename = "preferredSeatID")]
     preferred_seat_id: i32,
@@ -156,7 +161,7 @@ struct MultidayBookRequest {
 }
 
 struct MultiDayBookRequestBuilder<'a> {
-    floor_id: &'a i32,
+    floor_id: Option<i32>,
     days: Vec<String>,
     seat_id: &'a i32,
 }
@@ -165,16 +170,16 @@ impl<'a> MultiDayBookRequestBuilder<'a> {
     fn new() -> MultiDayBookRequestBuilder<'a> {
         let empty_days_vec = Vec::<String>::new();
         MultiDayBookRequestBuilder {
-            floor_id: &558, // Default here should load from config
+            floor_id: None, // Default here should load from config
             days: empty_days_vec,
             seat_id: &20606, // default here should load from config
         }
     }
 
-    fn floor(mut self, floor_id: Option<&'a i32>) -> Self {
+    fn floor(mut self, floor_id: Option<Floors>) -> Self {
         match floor_id {
             Some(floor) => {
-                self.floor_id = floor;
+                self.floor_id = Some(floor.api_values());
             }
             None => {}
         }
@@ -258,7 +263,7 @@ impl<'a> MultiDayBookRequestBuilder<'a> {
 
     fn spawn(self) -> MultidayBookRequest {
         MultidayBookRequest {
-            floorplan_id: self.floor_id.clone(),
+            floorplan_id: self.floor_id,
             days: self.days.clone(),
             preferred_seat_id: self.seat_id.clone(),
             resource_type: String::from("DESK"),

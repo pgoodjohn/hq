@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use requestty::Question;
-use strum_macros::EnumString;
 use std::str::FromStr;
+use strum_macros::EnumString;
 
 #[derive(Parser)]
 #[clap(version, about, arg_required_else_help(true))]
@@ -60,11 +60,11 @@ pub enum Floors {
     #[strum(serialize = "Second Floor")]
     SecondFloor,
     #[strum(serialize = "Third Floor")]
-    ThirdFloor
+    ThirdFloor,
 }
 
 impl Floors {
-    fn api_values(&self) -> i32 {
+    pub fn api_values(&self) -> i32 {
         match self {
             Floors::GroundFloor => 561,
             Floors::FirstFloor => 560,
@@ -79,7 +79,7 @@ impl Floors {
             560 => Floors::FirstFloor,
             559 => Floors::SecondFloor,
             558 => Floors::ThirdFloor,
-            _ => panic!("Unrecognized floor api value {}", api_value)
+            _ => panic!("Unrecognized floor api value {}", api_value),
         }
     }
 }
@@ -88,7 +88,7 @@ impl Floors {
 impl std::fmt::Display for Floors {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(f, "{}", self.to_string())
-        }   
+        }
 }
 */
 
@@ -100,10 +100,10 @@ fn floor_command() {
 
     match config.floor() {
         Some(floor) => log::info!("Currently preferred floor is {}", floor.to_string()),
-        None => log::info!("No preferred floor is currently set, let's set it up!")
+        None => log::info!("No preferred floor is currently set, let's set it up!"),
     }
 
-     let question = Question::select("preferred_floor")
+    let question = Question::select("preferred_floor")
         .message("Select your preferred floor")
         .choices(vec![
             Floors::GroundFloor.to_string(),
@@ -116,7 +116,7 @@ fn floor_command() {
     let answer = requestty::prompt_one(question);
 
     match answer {
-        Ok(result)  => {
+        Ok(result) => {
             let chosen_value = Floors::from_str(&result.as_list_item().unwrap().text).unwrap();
             log::debug!("{:?}", &chosen_value);
             config.preferred_floor_id = Some(chosen_value.api_values());
