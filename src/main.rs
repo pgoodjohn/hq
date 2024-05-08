@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
 use log::debug;
+
+mod db;
 mod logger;
 mod ssh;
 
@@ -17,6 +19,8 @@ struct Cli {
 enum Commands {
     /// Manage SSH keys and such
     Ssh(ssh::SshCommand),
+    /// Connect to Cloud VM datbases
+    Db(db::DbCommand,)
 }
 
 fn main() {
@@ -31,6 +35,9 @@ fn main() {
     match cli.command {
         Some(Commands::Ssh(command)) => {
             ssh::command(&command);
+        }
+        Some(Commands::Db(command)) => {
+            db::command(&command);
         }
         None => {}
     }
