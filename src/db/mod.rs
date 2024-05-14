@@ -62,7 +62,7 @@ fn list_databases_command(application: &String, zone: &String, project: &String)
     let database_instance = find_database_instance(application, zone, project);
 
     match database_instance {
-        Ok(instance) => log::info!("Database instance: {}", instance),
+        Ok(instance) => log::info!("Database instance: {:?}", instance),
         Err(e) => {
             log::debug!("Failed to find database instance: {}", e);
             parse_gcloud_error(&e).unwrap();
@@ -95,17 +95,19 @@ fn parse_gcloud_error(error_message: &str) -> Result<(String, String), &'static 
         log::warn!("Please run \"gcloud auth login\" and try again.");
         return Ok(("".to_string(), "".to_string()));
     }
+
+    log::warn!("Could not parse gcloud erro: \n{}", error_message);
         
-    Err("No matching error pattern found.")
+    Ok(("".to_string(), "".to_string()))
 }
 
-fn find_database_instance(application: &String, zone: &String, project: &String) -> Result<String, String> {
+fn find_database_instance(application: &String, zone: &String, project: &String) -> Result<Vec<String>, String> {
     let args = [
         "compute",
         "instances",
         "list",
         &format!("--filter=name~db-vm-{}", application),
-        "--limit=1",
+        // "--limit=1",
         &format!("--zones={}", zone),
         &format!("--project={}", project),
         "--format=value(name)",
@@ -144,9 +146,13 @@ fn find_database_instance(application: &String, zone: &String, project: &String)
     }
 
     // Successful output
-    let output_str = String::from_utf8(output.stdout).unwrap_or_else(|_| String::new());
+    let output_str = split_multiline_to_vector(&String::from_utf8(output.stdout).unwrap_or_else(|_| String::new()));
 
-    return Ok(output_str.trim_end().to_string())
+    return Ok(output_str);
+}
+
+fn split_multiline_to_vector(input: &str) -> Vec<String> {
+    input.lines().map(|line| line.to_string()).collect()
 }
 
 fn connect_to_database_command(application: &String, port: &Option<u16>, instance: &Option<String>, zone: &String, project: &String) {
@@ -160,8 +166,8 @@ fn connect_to_database_command(application: &String, port: &Option<u16>, instanc
     let database_instance = match instance {
         Some(ref inst) => inst,
         None => {
-            let database_instance = find_database_instance(application, zone, project).unwrap();
-            connect_via_gcloud(port, &database_instance, zone, project).unwrap();
+            let mut database_instance = find_database_instance(application, zone, project).unwrap();
+            connect_via_gcloud(port, &database_instance.pop().unwrap(), zone, project).unwrap();
             return;
         }
     };
