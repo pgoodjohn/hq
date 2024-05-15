@@ -1,12 +1,14 @@
 use clap::{Parser, Subcommand};
-use std::process::{Command, Stdio};
 use regex::Regex;
+
+mod gcloud;
 
 mod interactive;
 use interactive::*;
 
 mod types;
 use types::Application;
+use types::Zone;
 
 
 #[derive(Parser)]
@@ -73,7 +75,7 @@ pub fn command(command: &DbCommand) {
 fn list_databases_command(application: &String, zone: &String, project: &String) {
     log::info!("Listing databases in zone {} for project {}", zone, project);
 
-    let database_instance = find_database_instance(Application::new(&application), zone, project);
+    let database_instance = gcloud::list(Application::new(&application), &Zone::new(&zone), project);
 
     match database_instance {
         Ok(instance) => log::info!("Database instance: {:?}", instance),
@@ -124,60 +126,6 @@ fn parse_gcloud_error(error_message: &str) -> Result<(String, String), &'static 
     Ok(("".to_string(), "".to_string()))
 }
 
-fn find_database_instance(application: Application, zone: &String, project: &String) -> Result<Vec<String>, String> {
-    let args = [
-        "compute",
-        "instances",
-        "list",
-        &format!("--filter=name~db-vm-{}", application.as_str()),
-        // "--limit=1",
-        &format!("--zones={}", zone),
-        &format!("--project={}", project),
-        "--format=value(name)",
-    ];
-
-    log::debug!("Running: gcloud {}", args.join(" "));
-
-    let mut command = Command::new("gcloud");
-    for arg in args.iter() {
-        command.arg(arg);
-    }
-
-    // Keep all the otuput in memory
-    command.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
-
-    // Spawn the command
-    let spawned_command = match command.spawn() {
-        Ok(process) => process,
-        Err(e) => return Err(format!("Failed to spawn gcloud command: {}", e)),
-    };
-
-    // Capture output
-    let output = match spawned_command.wait_with_output() {
-        Ok(output) => {
-            log::debug!("Output: {:?}", output);
-            output
-        },
-        Err(e) => return Err(format!("Failed to read output: {}", e)),
-    };
-
-     if output.status.success() == false {
-        log::debug!("{:?}", output);
-
-        let err_msg = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("gcloud command failed:\n{}", err_msg));
-    }
-
-    // Successful output
-    let output_str = split_multiline_to_vector(&String::from_utf8(output.stdout).unwrap_or_else(|_| String::new()));
-
-    return Ok(output_str);
-}
-
-fn split_multiline_to_vector(input: &str) -> Vec<String> {
-    input.lines().map(|line| line.to_string()).collect()
-}
-
 fn connect_to_database_command(application: &String, port: &Option<u16>, instance: &Option<String>, zone: &String, project: &String) {
     log::info!("Connecting you to a database");
 
@@ -189,71 +137,30 @@ fn connect_to_database_command(application: &String, port: &Option<u16>, instanc
     let database_instance = match instance {
         Some(ref inst) => inst,
         None => {
-            let mut database_instance = find_database_instance(Application::new(&application), zone, project).unwrap();
-            connect_via_gcloud(port, &database_instance.pop().unwrap(), zone, project).unwrap();
+            let mut database_instance = gcloud::list(Application::new(&application), &Zone::new(zone), project).unwrap();
+            gcloud::connect(port, &database_instance.pop().unwrap(), Zone::new(zone), project).unwrap();
             return;
         }
     };
 
-    connect_via_gcloud(port, database_instance, zone, project).unwrap();
-}
-
-fn connect_via_gcloud(port: u16, instance: &String,  zone: &String, project: &String) -> Result<(), String> {
-    let args = [
-        "compute",
-        "start-iap-tunnel",
-        &format!("{}", instance.trim_end()),
-        "3306",
-        &format!("--local-host-port=localhost:{}", port),
-        &format!("--project={}", project),
-        &format!("--zone={}", zone),
-    ];
-
-    log::debug!("Running: gcloud {}", args.join(" "));
-
-    let mut command = Command::new("gcloud");
-    for arg in args.iter() {
-        command.arg(arg);
-    }
-
-    // Spawn the command
-    let command = match command.spawn() {
-        Ok(process) => process,
-        Err(e) => return Err(format!("Failed to spawn gcloud command: {}", e)),
-    };
-
-    // Wait for the command to complete and capture the output
-    let output = match command.wait_with_output() {
-        Ok(output) => output,
-        Err(e) => return Err(format!("Failed to read output: {}", e)),
-    };
-
-    if !output.status.success() {
-        let err_msg = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Command failed:\n{}", err_msg));
-    }
-
-    let _output_str = String::from_utf8(output.stdout).unwrap_or_else(|_| String::new());
-    // Ok(output_str);
-
-    Ok(())
+    gcloud::connect(port, database_instance, Zone::new(zone), project).unwrap();
 }
 
 fn connect_to_db_interactive() {
     log::info!("Connecting to database interactively");
 
-    let region = ask_region().unwrap();
+    let zone = ask_zone().unwrap();
     let project = ask_project().unwrap();
     let application = ask_application().unwrap();
 
     log::info!("Looking for databases to connect to");
 
-    let available_databases = find_database_instance(application, &region, &project).unwrap();
+    let available_databases = gcloud::list(application, &zone, &project).unwrap();
 
     let chosen_db = ask_db(available_databases).unwrap();
 
     let host_port = ask_host_port().unwrap();
 
-    log::debug!("Connecting to DB with data: Region: {} Host port: {} Project: {}, Chosen DB: {}", region, host_port, project, chosen_db);
-    connect_via_gcloud(host_port, &chosen_db, &region, &project).unwrap();
+    log::debug!("Connecting to DB with data: Zone: {} Host port: {} Project: {}, Chosen DB: {}", zone.as_str(), host_port, project, chosen_db);
+    gcloud::connect(host_port, &chosen_db, zone, &project).unwrap();
 }

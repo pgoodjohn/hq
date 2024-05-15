@@ -1,6 +1,6 @@
 use requestty::Question;
 
-use super::types::Application;
+use super::types::*;
 
 pub fn ask_db(available_databases: Vec<String>) -> Result<String, String> {
     let question = Question::select("db")
@@ -20,7 +20,7 @@ pub fn ask_db(available_databases: Vec<String>) -> Result<String, String> {
 
 }
 
-pub fn ask_region() -> Result<String, String> {
+pub fn ask_zone() -> Result<Zone, String> {
     let question = Question::input("region")
         .message("What region is the DB you are looking for in?")
         .default("europe-west1-c")
@@ -31,7 +31,7 @@ pub fn ask_region() -> Result<String, String> {
     match answer {
         Ok(result) => {
             let answer = result.as_string().unwrap();
-            Ok(String::from(answer))
+            Ok(Zone::new(answer))
         }
         Err(_) => Err( "Failed to get region from user".to_string()),
     }
