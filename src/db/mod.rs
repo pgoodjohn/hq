@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::process::{Command, Stdio};
 use regex::Regex;
+use requestty::Question;
 
 #[derive(Parser)]
 #[clap(version, about, arg_required_else_help(true))]
@@ -14,6 +15,9 @@ pub struct DbCommand {
 
 #[derive(Subcommand)]
 pub enum DbCommands {
+    /// Let H.Q.! guide you in finding the database.
+    #[clap(alias = "i")]
+    Interactive {},
     /// List available databases for project
     List {
         #[clap(long)]
@@ -51,6 +55,9 @@ pub fn command(command: &DbCommand) {
         }
         Some(DbCommands::Connect {application, port, instance, zone, project}) => {
             connect_to_database_command(application, port, instance, zone, project);
+        }
+        Some(DbCommands::Interactive {}) => {
+            connect_to_db_interactive();
         }
         None => {}
     }
@@ -214,4 +221,112 @@ fn connect_via_gcloud(port: u16, instance: &String,  zone: &String, project: &St
     // Ok(output_str);
 
     Ok(())
+}
+
+fn connect_to_db_interactive() {
+    log::info!("Connecting to database interactively");
+
+    let region = ask_region().unwrap();
+    let project = ask_project().unwrap();
+    let application = ask_application().unwrap();
+
+    log::info!("Looking for databases to connect to");
+
+    let available_databases = find_database_instance(&application, &region, &project).unwrap();
+
+    let chosen_db = ask_db(available_databases).unwrap();
+
+    let host_port = ask_host_port().unwrap();
+
+    log::debug!("Connecting to DB with data: Region: {} Host port: {} Project: {}, Chosen DB: {}", region, host_port, project, chosen_db);
+    connect_to_database_command(&application, &Some(host_port), &Some(chosen_db), &region, &project)
+}
+
+fn ask_db(available_databases: Vec<String>) -> Result<String, String> {
+    let question = Question::select("db")
+        .message("Select key db to connect to")
+        .choices(available_databases)
+        .build();
+
+    let answer = requestty::prompt_one(question);
+
+    match answer {
+        Ok(result) => {
+            let answer = &result.as_list_item().unwrap().text;
+            Ok(String::from(answer))
+        }
+        Err(_) => Err("Failed to get db from user".to_string()),
+    }
+
+}
+
+fn ask_region() -> Result<String, String> {
+    let question = Question::input("region")
+        .message("What region is the DB you are looking for in?")
+        .default("europe-west1-c")
+        .build();
+
+    let answer = requestty::prompt_one(question);
+
+    match answer {
+        Ok(result) => {
+            let answer = result.as_string().unwrap();
+            Ok(String::from(answer))
+        }
+        Err(_) => Err( "Failed to get region from user".to_string()),
+    }
+}
+
+fn ask_host_port() -> Result<u16, String> {
+    let question = Question::input("port")
+        .message("On what port do you want the DB to be available on your host?")
+        .default("13306")
+        .build();
+
+    let answer = requestty::prompt_one(question);
+
+    match answer {
+        Ok(result) => {
+            let answer = result.as_string().unwrap();
+            match answer.parse::<u16>() {
+                Ok(port) => Ok(port),
+                Err(_) => Err("Failed to parse port".to_string()),
+            }
+        }
+        Err(_) => Err("Failed to get port from user".to_string()),
+    }
+}
+
+fn ask_project() -> Result<String, String> {
+    let question = Question::input("project")
+        .message("What is the name of the project?")
+        .default("mol-platform-prod")
+        .build();
+
+    let answer = requestty::prompt_one(question);
+
+    match answer {
+        Ok(result) => {
+            let answer = result.as_string().unwrap();
+            Ok(String::from(answer))
+        }
+        Err(_) => Err("Failed to get project name from user".to_string()),
+    }
+}
+
+fn ask_application() -> Result<String, String> {
+    let question = Question::input("application")
+        .message("What is the name of the application?")
+        .default("mollie")
+        .build();
+
+    let answer = requestty::prompt_one(question);
+
+    match answer {
+        Ok(result) => {
+            let answer = result.as_string().unwrap();
+            Ok(String::from(answer))
+        }
+        Err(_) => Err("Failed to get application name from user".to_string()),
+    }
 }
