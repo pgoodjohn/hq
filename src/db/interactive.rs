@@ -17,7 +17,6 @@ pub fn ask_db(available_databases: Vec<String>) -> Result<String, String> {
         }
         Err(_) => Err("Failed to get db from user".to_string()),
     }
-
 }
 
 pub fn ask_zone() -> Result<Zone, String> {
@@ -33,7 +32,7 @@ pub fn ask_zone() -> Result<Zone, String> {
             let answer = result.as_string().unwrap();
             Ok(Zone::new(answer))
         }
-        Err(_) => Err( "Failed to get region from user".to_string()),
+        Err(_) => Err("Failed to get region from user".to_string()),
     }
 }
 

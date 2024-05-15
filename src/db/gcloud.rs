@@ -1,10 +1,9 @@
-use std::process::{Command, Stdio};
 use std::net::TcpListener;
+use std::process::{Command, Stdio};
 
 use super::types::*;
 
-pub fn connect(port: u16, instance: &String,  zone: Zone, project: &String) -> Result<(), String> {
-
+pub fn connect(port: u16, instance: &String, zone: Zone, project: &String) -> Result<(), String> {
     validate_port(port).unwrap();
 
     let args = [
@@ -47,7 +46,6 @@ pub fn connect(port: u16, instance: &String,  zone: Zone, project: &String) -> R
     Ok(())
 }
 
-
 fn validate_port(port: u16) -> Result<(), String> {
     if is_port_in_use(port) {
         let process_details = get_process_details(port);
@@ -64,14 +62,13 @@ fn validate_port(port: u16) -> Result<(), String> {
     }
 
     Ok(())
-
 }
 
 fn is_port_in_use(port: u16) -> bool {
     log::debug!("Checking if port {} is in use", port);
     match TcpListener::bind(("127.0.0.1", port)) {
         Ok(_listener) => false, // If we can bind, the port is not in use.
-        Err(_) => true, // If we can't bind, the port is in use.
+        Err(_) => true,         // If we can't bind, the port is in use.
     }
 }
 
@@ -114,14 +111,16 @@ fn get_process_details(port: u16) -> Option<String> {
     }
 }
 
-
-pub fn list(application: Application, zone: &Zone, project: &String) -> Result<Vec<String>, String> {
+pub fn list(
+    application: Application,
+    zone: &Zone,
+    project: &String,
+) -> Result<Vec<String>, String> {
     let args = [
         "compute",
         "instances",
         "list",
         &format!("--filter=name~db-vm-{}", application.as_str()),
-        // "--limit=1",
         &format!("--zones={}", zone.as_str()),
         &format!("--project={}", project),
         "--format=value(name)",
@@ -135,7 +134,10 @@ pub fn list(application: Application, zone: &Zone, project: &String) -> Result<V
     }
 
     // Keep all the otuput in memory
-    command.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
 
     // Spawn the command
     let spawned_command = match command.spawn() {
@@ -148,11 +150,11 @@ pub fn list(application: Application, zone: &Zone, project: &String) -> Result<V
         Ok(output) => {
             log::debug!("Output: {:?}", output);
             output
-        },
+        }
         Err(e) => return Err(format!("Failed to read output: {}", e)),
     };
 
-     if output.status.success() == false {
+    if output.status.success() == false {
         log::debug!("{:?}", output);
 
         let err_msg = String::from_utf8_lossy(&output.stderr);
@@ -160,7 +162,9 @@ pub fn list(application: Application, zone: &Zone, project: &String) -> Result<V
     }
 
     // Successful output
-    let output_str = split_multiline_to_vector(&String::from_utf8(output.stdout).unwrap_or_else(|_| String::new()));
+    let output_str = split_multiline_to_vector(
+        &String::from_utf8(output.stdout).unwrap_or_else(|_| String::new()),
+    );
 
     return Ok(output_str);
 }
